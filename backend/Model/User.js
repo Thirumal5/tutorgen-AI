@@ -25,7 +25,7 @@ const userSchema = new mongoose.Schema({
   },
   score: { type: Number, default: 0 },
   performance: { type: String, default: 'Pending Validation' },
-  roadmap: { type: String, default: 'Core Fundamentals' },
+  roadmap: { type: mongoose.Schema.Types.Mixed, default: 'Core Fundamentals' },
   strengths: { type: [String], default: [] },
   weaknesses: { type: [String], default: [] },
   feedback: { type: String, default: 'Welcome! Complete your first assessment to receive personalized feedback.' },

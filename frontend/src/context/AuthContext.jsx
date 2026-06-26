@@ -3,23 +3,26 @@ import axios from 'axios';
 
 const AuthContext = createContext();
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => useContext(AuthContext);
+
+// Configure axios base
+axios.defaults.baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-
-  // Configure axios base
-  axios.defaults.baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
   useEffect(() => {
     // Check if token exists on load
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
       const parsed = JSON.parse(storedUser);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setUser(parsed);
       axios.defaults.headers.common['Authorization'] = `Bearer ${parsed.token}`;
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(false);
   }, []);
 

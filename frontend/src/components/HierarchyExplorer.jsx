@@ -99,7 +99,6 @@ export default function HierarchyExplorer() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    setLoading(true);
     axios.get('/users/hierarchy/deep')
       .then(res => {
         setData(res.data);

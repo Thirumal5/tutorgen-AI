@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Maximize, ShieldAlert, CheckCircle, Clock, Loader2, ArrowLeft, Code2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import Editor from '@monaco-editor/react';
 
 export default function Assessment() {
   const [phase, setPhase] = useState('setup');
@@ -48,6 +49,7 @@ export default function Assessment() {
       }, 1000);
     }
     return () => clearInterval(timerRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, isFullScreen]);
 
   const formatTime = (s) => `${Math.floor(s / 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
@@ -62,6 +64,16 @@ export default function Assessment() {
       });
       setQuestion(data.question);
       setAssessmentId(data.assessmentId);
+      
+      let boilerplate = `function solve(input) {\n  // Write your code here\n  \n}\n\n// --- Test Cases ---\n`;
+      if (data.question.examples) {
+        data.question.examples.forEach((ex, i) => {
+          boilerplate += `// Test ${i + 1} (Expected Output: ${typeof ex.output === 'object' ? JSON.stringify(ex.output) : ex.output})\n`;
+          boilerplate += `// console.log(solve(${typeof ex.input === 'object' ? JSON.stringify(ex.input) : ex.input}));\n\n`;
+        });
+      }
+      setSolution(boilerplate);
+      
       setPhase('exam');
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to generate question. Please try again.');
@@ -327,21 +339,23 @@ export default function Assessment() {
             </div>
             <span style={{ background: '#ef4444', color: 'white', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold' }}>NO COPY/PASTE</span>
           </div>
-          <textarea
-            value={solution}
-            onChange={(e) => setSolution(e.target.value)}
-            onCopy={preventCheating}
-            onCut={preventCheating}
-            onPaste={preventCheating}
-            onContextMenu={preventCheating}
-            placeholder="// Type your solution here..."
-            style={{
-              flex: 1, width: '100%', background: 'transparent', color: '#d4d4d4',
-              border: 'none', padding: '1.5rem', fontFamily: '"Fira Code", "Consolas", monospace',
-              fontSize: '0.95rem', lineHeight: '1.6', outline: 'none', resize: 'none',
-            }}
-            spellCheck="false"
-          />
+          <div style={{ flex: 1, padding: '0.5rem', overflow: 'hidden' }}>
+            <Editor
+              height="100%"
+              width="100%"
+              theme="vs-dark"
+              language={selectedLanguage}
+              value={solution}
+              onChange={(value) => setSolution(value || "")}
+              options={{
+                minimap: { enabled: false },
+                fontSize: 14,
+                fontFamily: '"Fira Code", "Consolas", monospace',
+                wordWrap: 'on',
+                contextmenu: false,
+              }}
+            />
+          </div>
         </div>
       </div>
     </div>
