@@ -21,6 +21,7 @@ RULES:
 - Create something original, NOT well-known problems like Two Sum or Reverse Linked List
 - Include a clear problem statement, 2-3 examples with input/output, and constraints
 - The problem should be solvable in 30-45 minutes
+- IMPORTANT: For 'input', provide ONLY the comma-separated raw values ready to be passed to a function (e.g., \`[2, 7, 11], 9\`). DO NOT include variable names like \`nums = ...\`.
 
 Respond with ONLY valid JSON, no markdown, no backticks:
 {
@@ -29,7 +30,7 @@ Respond with ONLY valid JSON, no markdown, no backticks:
   "difficulty": "${difficulty}",
   "problemStatement": "Full problem description...",
   "examples": [
-    { "input": "input", "output": "output", "explanation": "why" }
+    { "input": "[2, 7, 11, 15], 9", "output": "[0, 1]", "explanation": "why" }
   ],
   "constraints": ["1 <= n <= 10^5"],
   "expectedTimeComplexity": "O(n)",
@@ -134,8 +135,11 @@ export const feedbackAgent = async (problem, reviewResult, studentHistory = []) 
     : "This is the student's first assessment.";
 
   const systemPrompt = `You are a Learning Coach generating constructive feedback.
+Give specific actionable improvements based on the student's code submission and score.
+The roadmap should list week-by-week topics to study based on weak areas.
 
-Respond with ONLY valid JSON, no markdown, no backticks:
+You MUST respond with ONLY a valid JSON object. No markdown formatting, no backticks, no extra text.
+The JSON must strictly follow this exact schema:
 {
   "summary": "2-3 sentence summary",
   "strengths": ["strength 1"],
@@ -144,7 +148,10 @@ Respond with ONLY valid JSON, no markdown, no backticks:
   "motivationalNote": "encouraging message",
   "nextTopicSuggestion": "next topic",
   "performanceLevel": "good",
-  "roadmap": "A clear, personalized 1-paragraph learning roadmap based on assessment history outlining next steps."
+  "roadmap": [
+    { "week": 1, "topic": "topic name", "focus": "what to study specifically" },
+    { "week": 2, "topic": "next topic", "focus": "what to study specifically" }
+  ]
 }`;
 
   const response = await getGroq().chat.completions.create({
@@ -175,7 +182,10 @@ Respond with ONLY valid JSON, no markdown, no backticks:
       motivationalNote: "Keep going! Every problem makes you stronger. 💪",
       nextTopicSuggestion: problem.topic,
       performanceLevel: reviewResult.rating || "average",
-      roadmap: "Keep practicing fundamental data structures to build a strong base.",
+      roadmap: [
+        { week: 1, topic: problem.topic, focus: "Review basic concepts and time complexities." },
+        { week: 2, topic: "Arrays & Strings", focus: "Practice two-pointer and sliding window techniques." }
+      ],
     };
   }
 };

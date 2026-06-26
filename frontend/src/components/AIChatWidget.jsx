@@ -32,7 +32,7 @@ export default function AIChatWidget() {
         role: 'ai', 
         text: data.reply
       }]);
-    } catch (error) {
+    } catch {
       setMessages(prev => [...prev, { 
         role: 'ai', 
         text: 'Sorry, I am having trouble connecting to the server.'

@@ -1,3 +1,4 @@
+import axios from "axios";
 import Assessment from "../Model/Assements.js";
 import Feedback from "../Model/Feedback.js";
 import Performance from "../Model/Performance.js";
@@ -201,3 +202,59 @@ async function updateUserStats(userId) {
     console.error("User stats update error:", err);
   }
 }
+
+export const runCode = async (req, res) => {
+  try {
+    const { assessmentId } = req.params;
+    const { code, language } = req.body;
+
+    const assessment = await Assessment.findById(assessmentId);
+    if (!assessment) return res.status(404).json({ message: "Assessment not found" });
+
+    const problemData = assessment.problemData;
+    if (!problemData || !problemData.examples || problemData.examples.length === 0) {
+      return res.status(400).json({ message: "No test cases found for this problem" });
+    }
+
+    let wrapperCode = "";
+    if (language === 'javascript' || language === 'js') {
+      wrapperCode = `\n\n// --- Test Execution ---\n`;
+      problemData.examples.forEach((ex, i) => {
+        wrapperCode += `try { console.log("Test ${i+1} Output:", solve(${ex.input})); } catch(e) { console.log("Test ${i+1} Error:", e.message); }\n`;
+      });
+    } else if (language === 'python') {
+      wrapperCode = `\n\n# --- Test Execution ---\n`;
+      problemData.examples.forEach((ex, i) => {
+        wrapperCode += `try:\n    print(f"Test ${i+1} Output:", solve(${ex.input}))\nexcept Exception as e:\n    print(f"Test ${i+1} Error:", str(e))\n`;
+      });
+    }
+
+    const finalCode = (language === 'javascript' || language === 'python') ? code + wrapperCode : code;
+
+    const langMap = {
+      javascript: { language: 'javascript', version: '18.15.0' },
+      python: { language: 'python', version: '3.10.0' },
+      java: { language: 'java', version: '15.0.2' },
+      cpp: { language: 'c++', version: '10.2.0' },
+      c: { language: 'c', version: '10.2.0' },
+    };
+
+    const runLang = langMap[language] || langMap['javascript'];
+
+    const response = await axios.post("https://emkc.org/api/v2/piston/execute", {
+      language: runLang.language,
+      version: runLang.version,
+      files: [{ content: finalCode }]
+    });
+
+    res.json({
+      output: response.data.run.output,
+      stderr: response.data.run.stderr,
+      stdout: response.data.run.stdout,
+      code: response.data.run.code
+    });
+  } catch (error) {
+    console.error("Run code error:", error);
+    res.status(500).json({ message: "Code execution failed" });
+  }
+};

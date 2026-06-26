@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { GraduationCap, Map, MessageSquareQuote, Activity, Zap, PlayCircle, Star, Code2, Loader2, Save, ExternalLink } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import StatCard from '../components/StatCard';
@@ -10,50 +11,16 @@ export default function StudentDashboard() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
-  const [lcUsername, setLcUsername] = useState(user?.cpProfiles?.leetcode || '');
-  const [cpStats, setCpStats] = useState(null);
-  const [cpLoading, setCpLoading] = useState(false);
-  const [cpSaving, setCpSaving] = useState(false);
-  const [cpMessage, setCpMessage] = useState('');
   const [assessmentHistory, setAssessmentHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
   useEffect(() => {
-    if (activeTab === 'competitive') {
-      fetchCPStats();
-    }
     if (activeTab === 'history') {
       fetchHistory();
     }
   }, [activeTab]);
 
-  const fetchCPStats = async () => {
-    setCpLoading(true);
-    try {
-      const { data } = await axios.get('/student/cp-stats');
-      setCpStats(data);
-      if (data.profiles?.leetcode) setLcUsername(data.profiles.leetcode);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setCpLoading(false);
-    }
-  };
 
-  const saveLeetCodeUsername = async () => {
-    setCpSaving(true);
-    setCpMessage('');
-    try {
-      await axios.put('/student/cp-profiles', { leetcode: lcUsername });
-      setCpMessage('Username saved! Fetching stats...');
-      await fetchCPStats();
-      setCpMessage('');
-    } catch (err) {
-      setCpMessage('Failed to save');
-    } finally {
-      setCpSaving(false);
-    }
-  };
 
   const fetchHistory = async () => {
     setHistoryLoading(true);
@@ -76,7 +43,23 @@ export default function StudentDashboard() {
     fontSize: '0.85rem',
   });
 
-  const lc = cpStats?.leetcode;
+
+
+  const getTopicProgressData = () => {
+    if (!assessmentHistory || assessmentHistory.length === 0) return [];
+    const topicMap = {};
+    assessmentHistory.forEach(a => {
+      const topicName = a.topic || 'Unknown';
+      if (!topicMap[topicName]) topicMap[topicName] = { total: 0, count: 0 };
+      topicMap[topicName].total += (a.aiScore || 0);
+      topicMap[topicName].count += 1;
+    });
+    return Object.keys(topicMap).map(topic => ({
+      name: topic,
+      score: Math.round(topicMap[topic].total / topicMap[topic].count)
+    })).sort((a, b) => b.score - a.score);
+  };
+  const topicData = getTopicProgressData();
 
   return (
     <div className="dashboard-container animate-fade-in" style={{ paddingBottom: '100px' }}>
@@ -96,7 +79,6 @@ export default function StudentDashboard() {
 
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '2rem', borderBottom: '1px solid var(--border-glass)', paddingBottom: '1rem', flexWrap: 'wrap' }}>
         <button className="glass-button" style={tabStyle('overview')} onClick={() => setActiveTab('overview')}>Overview</button>
-        <button className="glass-button" style={tabStyle('competitive')} onClick={() => setActiveTab('competitive')}>Competitive Programming</button>
         <button className="glass-button" style={tabStyle('history')} onClick={() => setActiveTab('history')}>Assessment History</button>
         <button className="glass-button" style={tabStyle('roadmap')} onClick={() => setActiveTab('roadmap')}>Roadmap</button>
         <button className="glass-button" style={tabStyle('feedback')} onClick={() => setActiveTab('feedback')}>Feedback</button>
@@ -129,82 +111,30 @@ export default function StudentDashboard() {
               </ul>
             </div>
           </div>
-        </div>
-      )}
 
-      {activeTab === 'competitive' && (
-        <div className="delay-100">
-          <div className="glass-panel" style={{ padding: '2rem', marginBottom: '1.5rem' }}>
-            <h2 style={{ margin: '0 0 1.5rem', fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Code2 size={22} color="#fbbf24" /> LeetCode Profile
-            </h2>
-            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-              <input
-                type="text"
-                className="glass-input"
-                style={{ flex: '1 1 250px', maxWidth: '400px' }}
-                placeholder="Enter your LeetCode username"
-                value={lcUsername}
-                onChange={(e) => setLcUsername(e.target.value)}
-              />
-              <button onClick={saveLeetCodeUsername} className="glass-button" disabled={cpSaving || !lcUsername.trim()} style={{ width: 'auto', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '10px 20px', opacity: !lcUsername.trim() ? 0.5 : 1 }}>
-                {cpSaving ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <Save size={16} />} Save
-              </button>
-              {lcUsername && (
-                <a href={`https://leetcode.com/${lcUsername}`} target="_blank" rel="noopener noreferrer" style={{ color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.85rem', textDecoration: 'none' }}>
-                  <ExternalLink size={14} /> View Profile
-                </a>
-              )}
-            </div>
-            {cpMessage && <p style={{ marginTop: '0.75rem', color: '#4ade80', fontSize: '0.85rem' }}>{cpMessage}</p>}
+          <div className="glass-panel" style={{ padding: '2rem', marginTop: '1.5rem' }}>
+            <h3 style={{ margin: '0 0 1rem 0', color: '#818cf8', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Activity size={20} /> Topic-wise Performance
+            </h3>
+            {topicData.length > 0 ? (
+              <div style={{ width: '100%', height: Math.max(250, topicData.length * 50) }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={topicData} layout="vertical" margin={{ top: 5, right: 50, left: 60, bottom: 5 }}>
+                    <XAxis type="number" domain={[0, 100]} hide />
+                    <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fill: '#d4d4d4', fontSize: 13 }} width={120} />
+                    <Tooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} contentStyle={{ background: '#1e1e1e', border: '1px solid #404040', borderRadius: '8px', color: '#fff' }} itemStyle={{ color: '#818cf8' }} />
+                    <Bar dataKey="score" fill="#818cf8" radius={[0, 4, 4, 0]} barSize={24} label={{ position: 'right', fill: '#d4d4d4', formatter: (val) => `${val}%` }} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <p style={{ color: 'var(--text-muted)', margin: 0 }}>Complete assessments to see your topic-wise progress.</p>
+            )}
           </div>
-
-          {cpLoading && (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem' }}>
-              <Loader2 size={32} color="var(--primary)" style={{ animation: 'spin 1s linear infinite' }} />
-            </div>
-          )}
-
-          {!cpLoading && lc && !lc.error && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem' }}>
-              <div className="glass-panel" style={{ padding: '2rem', textAlign: 'center' }}>
-                <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#fbbf24' }}>{lc.totalSolved}</div>
-                <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Total Problems Solved</div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>out of {lc.totalQuestions}</div>
-              </div>
-
-              <div className="glass-panel" style={{ padding: '2rem' }}>
-                <h4 style={{ margin: '0 0 1rem', color: 'var(--text-muted)', fontSize: '0.9rem' }}>Difficulty Breakdown</h4>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  <DifficultyBar label="Easy" solved={lc.easySolved} total={lc.totalEasy} color="#34d399" />
-                  <DifficultyBar label="Medium" solved={lc.mediumSolved} total={lc.totalMedium} color="#fbbf24" />
-                  <DifficultyBar label="Hard" solved={lc.hardSolved} total={lc.totalHard} color="#ef4444" />
-                </div>
-              </div>
-
-              <div className="glass-panel" style={{ padding: '2rem' }}>
-                <h4 style={{ margin: '0 0 1rem', color: 'var(--text-muted)', fontSize: '0.9rem' }}>Stats</h4>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  <StatRow label="Ranking" value={lc.ranking} />
-                  <StatRow label="Acceptance Rate" value={`${Math.round(lc.acceptanceRate || 0)}%`} />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {!cpLoading && lc?.error && (
-            <div className="glass-panel" style={{ padding: '2rem', textAlign: 'center', color: '#ef4444' }}>
-              {lc.error}
-            </div>
-          )}
-
-          {!cpLoading && !lc && (
-            <div className="glass-panel" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-              Enter your LeetCode username above to see your stats.
-            </div>
-          )}
         </div>
       )}
+
+
 
       {activeTab === 'history' && (
         <div className="delay-100">
@@ -251,10 +181,21 @@ export default function StudentDashboard() {
       {activeTab === 'roadmap' && (
         <div className="glass-panel delay-100" style={{ padding: '2rem' }}>
           <h2 style={{ fontSize: '1.25rem', marginBottom: '1.5rem' }}>Current Learning Path</h2>
-          <div style={{ padding: '1.5rem', background: 'rgba(52, 211, 153, 0.1)', borderLeft: '4px solid #34d399', borderRadius: '4px' }}>
-            <h4 style={{ margin: '0 0 0.5rem 0', color: '#34d399' }}>Active Phase</h4>
-            <p style={{ margin: 0 }}>{user?.roadmap || 'Complete an assessment to unlock your roadmap.'}</p>
-          </div>
+          {Array.isArray(user?.roadmap) ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {user.roadmap.map((step, idx) => (
+                <div key={idx} style={{ padding: '1.5rem', background: 'rgba(52, 211, 153, 0.05)', borderLeft: '4px solid #34d399', borderRadius: '4px' }}>
+                  <h4 style={{ margin: '0 0 0.5rem 0', color: '#34d399' }}>Week {step.week}: {step.topic}</h4>
+                  <p style={{ margin: 0, color: 'var(--text-muted)', lineHeight: '1.6' }}>{step.focus}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ padding: '1.5rem', background: 'rgba(52, 211, 153, 0.1)', borderLeft: '4px solid #34d399', borderRadius: '4px' }}>
+              <h4 style={{ margin: '0 0 0.5rem 0', color: '#34d399' }}>Active Phase</h4>
+              <p style={{ margin: 0 }}>{user?.roadmap || 'Complete an assessment to unlock your roadmap.'}</p>
+            </div>
+          )}
         </div>
       )}
 
